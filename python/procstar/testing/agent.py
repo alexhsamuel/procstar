@@ -55,13 +55,11 @@ class Assembly:
         # The procstar server.
         self.server = procstar.agent.server.Server()
 
-        # The port on which the websocket server is running.  Automatically
-        # assigned the first time the server starts.
+        # The websocket server and the task running it.
+        self.ws = None
+
+        # The port is assigned automatically the first time the server starts.
         self.port = None
-        # The websocket server.
-        self.ws_server = None
-        # The task running the websocket server.
-        self.ws_task = None
 
         # Async (OS) process objects for the procstar instance processes, keyed
         # by conn_id.
@@ -78,21 +76,22 @@ class Assembly:
         :precondition:
           The server is not started.
         """
-        assert self.ws_server is None
-        assert self.ws_task is None
+        assert self.ws is None
         # Create the websockets server, that runs our protocol server.  Choose a
         # new port the first time, then keep using the same port, so procstar
         # instances can reconnect.
-        self.ws_server = await self.server.run(
+        ws_server = await self.server.run(
             host        ="localhost",
             port        =self.port,
             tls_cert    =(TLS_CERT_PATH, TLS_KEY_PATH),
             access_token=self.access_token,
         )
-        self.port = self.locs[0][1]
+        self.port = tuple(_get_local(ws_server))[0][1]
         logger.info(f"started on port {self.port}")
         # Start it up in a task.
-        self.ws_task = asyncio.create_task(self.ws_server.serve_forever())
+        ws_task = asyncio.create_task(ws_server.serve_forever())
+
+        self.ws = ws_server, ws_task
 
 
     async def stop_server(self):
@@ -101,27 +100,20 @@ class Assembly:
 
         Idempotent.
         """
-        if self.ws_server is None and self.ws_task is None:
+        if self.ws is None:
             # Not started.
             return
 
-        self.ws_server.close()
-        await self.ws_server.wait_closed()
+        ws_server, ws_task = self.ws
+        self.ws = None
+
+        ws_server.close()
+        await ws_server.wait_closed()
         try:
-            await self.ws_task
+            assert ws_task is not None
+            await ws_task
         except asyncio.CancelledError:
             pass
-
-        self.ws_server = None
-        self.ws_task = None
-
-
-    @property
-    def locs(self):
-        """
-        A sequence of host, port to which the websocket server is bound.
-        """
-        return tuple(_get_local(self.ws_server))
 
 
     def _build(self, conn_id, group_id, access_token, args):

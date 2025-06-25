@@ -8,7 +8,7 @@ import logging
 import os
 from   pathlib import Path
 import ssl
-import websockets.server
+import websockets.asyncio.server
 from   websockets.exceptions import ConnectionClosedOK, ConnectionClosedError
 
 from   . import DEFAULT_PORT
@@ -73,7 +73,7 @@ class Server:
         self.processes = Processes()
 
 
-    def run(
+    async def run(
             self, *,
             host                =FROM_ENV,
             port                =FROM_ENV,
@@ -128,17 +128,12 @@ class Server:
                 logger.debug(f"TLS: {args}")
             ssl_context._msg_callback = msg_callback
 
-        return websockets.server.serve(
+        return await websockets.asyncio.server.serve(
             partial(self._serve_connection, access_token, reconnect_timeout),
             host, port,
             ssl=ssl_context,
             max_size=None,  # no message size limit
         )
-
-
-    async def run_forever(self, **kw_args):
-        _server = await self.run(**kw_args)
-        # FIXME: Log the/a server URL.
 
 
     async def _serve_connection(self, access_token, reconnect_timeout, ws):
@@ -147,7 +142,7 @@ class Server:
 
         Use this bound method with `websockets.server.serve()`.
         """
-        assert ws.open
+        assert ws.state == websockets.protocol.State.OPEN
         time = now()
 
         try:
@@ -211,7 +206,7 @@ class Server:
                     self.processes.create(conn, proc_id)
                 for proc_id in our_proc_ids - conn_proc_ids:
                     # The agent doesn't know of this proc ID.
-                    logging.warning(f"unknown proc {proc_id} on conn {conn_id}")
+                    logger.warning(f"unknown proc {proc_id} on conn {conn_id}")
                     self.processes.on_message(conn, proto.ProcUnknown(proc_id))
                 # Request results for all of them.
                 for proc_id in conn_proc_ids & our_proc_ids:

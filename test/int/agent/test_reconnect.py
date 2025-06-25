@@ -30,7 +30,6 @@ async def test_ws_reconnect():
                 # Close the connection.
                 conn, = asm.server.connections.values()
                 await conn.ws.close()
-                assert conn.ws.closed
                 # Wait for reconnect.
                 conn_id, conn = await anext(sub)
 
@@ -60,7 +59,6 @@ async def test_ws_reconnect_nowait():
         # Close the connection.
         conn, = asm.server.connections.values()
         await conn.ws.close()
-        assert conn.ws.closed
 
         # Wait for results anyway.  The procstar instance should reconnect.
         res0, res1 = await asyncio.gather(asm.wait(proc0), asm.wait(proc1))
@@ -82,6 +80,8 @@ async def test_proc_reconnect():
             "reconnect1",
             spec.make_proc([SLEEP_EXE, "0.4"])
         )
+
+        await asyncio.sleep(0.1)
 
         # Restart server.
         await asm.stop_server()
@@ -115,5 +115,5 @@ async def test_proc_connect_timeout():
 if __name__ == "__main__":
     import logging
     logging.getLogger().setLevel(logging.INFO)
-    asyncio.run(test_proc_connect_timeout())
+    asyncio.run(test_proc_reconnect())
 

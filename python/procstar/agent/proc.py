@@ -4,7 +4,7 @@ Processes on connected procstar instances.
 
 import asyncio
 from   collections.abc import Mapping
-from   dataclasses import dataclass
+from   dataclasses import dataclass, field
 from   functools import cached_property
 import logging
 
@@ -70,7 +70,7 @@ class FdData:
     """
     The interval of output bytes contained in this update.
     """
-    interval: Interval = Interval(0, 0)
+    interval: Interval = field(default_factory=lambda: Interval(0, 0))
 
     """
     The output encoding.

@@ -16,12 +16,12 @@ classifiers = [
     "Programming Language :: Python :: 3",
 ]
 
-requires-python = ">=3.10"
+requires-python = ">=3.13"
 dependencies = [
     "orjson >=3",
     "msgpack >=1",
     "requests",
-    "websockets >=10",
+    "websockets >=15",
 ]
 optional-dependencies = {dev = ["build", "httpx", "pytest", "pytest-asyncio", "bump-my-version", "sphinx", "sphinx-rtd-theme"]}
 
